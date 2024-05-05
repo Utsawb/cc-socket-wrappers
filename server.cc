@@ -15,6 +15,8 @@ auto main(void) -> int
     {
         server >> buffer;
         std::cout << buffer.data() << std::endl;
+        buffer.at(0) = '?';
+        server << buffer;
     }
 
     return EXIT_SUCCESS;

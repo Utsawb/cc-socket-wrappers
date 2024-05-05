@@ -112,6 +112,16 @@ namespace jj
             /* UDP should not be copied, since this is undefined behavior */
             auto operator=(const UDP &obj) -> UDP & = delete;
 
+            /*  UDP is pretty crazy, since the same socket can still send messages too, might as well
+                use this feature to implement stuff like reply */
+            auto new_connection(const std::string &ip_addr, const std::string &port) -> void
+            {
+                sock_conf.sin_family = AF_INET;
+                sock_conf.sin_port = htons(std::stoul(port));
+                sock_conf_len = sizeof(sock_conf);
+                sock_conf.sin_addr.s_addr = inet_addr(ip_addr.c_str());
+            }
+
             /* Takes a vector obj and sends it through the socket */
             template <typename T> friend auto operator<<(UDP &udp, const std::vector<T> &obj) -> UDP &
             {
@@ -126,7 +136,8 @@ namespace jj
             template <typename T> friend auto operator>>(UDP &udp, std::vector<T> &obj) -> UDP &
             {
                 obj.resize(obj.capacity());
-                int nbytes = recv(udp.sock_fd, obj.data(), obj.capacity() * sizeof(T), 0);
+                int nbytes = recvfrom(udp.sock_fd, obj.data(), obj.capacity() * sizeof(T), 0,
+                                      (struct sockaddr *)&udp.sock_conf, &udp.sock_conf_len);
                 assert_throw(nbytes != -1, "Failed to read from socket");
                 obj.resize(nbytes / sizeof(T));
                 return udp;
@@ -146,7 +157,8 @@ namespace jj
                 Since resize trucates the string, ensure that it is resized upon reuse. */
             friend auto operator>>(UDP &udp, std::string &obj) -> UDP &
             {
-                int nbytes = recv(udp.sock_fd, obj.data(), obj.capacity(), 0);
+                int nbytes = recvfrom(udp.sock_fd, obj.data(), obj.capacity(), 0, (struct sockaddr *)&udp.sock_conf,
+                                      &udp.sock_conf_len);
                 obj.resize(nbytes);
                 assert_throw(nbytes != -1, "Failed to read from socket");
                 return udp;
@@ -169,7 +181,8 @@ namespace jj
                 and size of the object */
             template <typename T> friend auto operator>>(UDP &udp, T &obj) -> UDP &
             {
-                int nbytes = recv(udp.sock_fd, &obj, sizeof(obj), 0);
+                int nbytes =
+                    recvfrom(udp.sock_fd, &obj, sizeof(obj), 0, (struct sockaddr *)&udp.sock_conf, &udp.sock_conf_len);
                 assert_throw(nbytes != -1, "Failed to read from socket");
                 return udp;
             }
@@ -186,7 +199,7 @@ namespace jj
             /* A direct wrapper around the underlying write function */
             auto read(void *msg, std::size_t size) -> ssize_t
             {
-                int nbytes = recv(sock_fd, msg, size, 0);
+                int nbytes = recvfrom(sock_fd, msg, size, 0, (struct sockaddr *)&sock_conf, &sock_conf_len);
                 assert_throw(nbytes != -1, "Failed to read from socket");
                 return nbytes;
             }

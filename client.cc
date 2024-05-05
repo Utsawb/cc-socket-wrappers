@@ -10,13 +10,15 @@ auto main(int argc, char** argv) -> int
         std::cout << "Pass in the server IP" << std::endl;
     }
 
-    jj::UDP client(argv[1], "5000", jj::UDP::CLIENT);
+    jj::UDP client("0.0.0.0", "5000", jj::UDP::CLIENT);
     std::string msg;
 
     while (true)
     {
         std::getline(std::cin, msg);
         client << msg;
+        client >> msg;
+        std::cout << msg << std::endl;
     }
     return EXIT_SUCCESS;
 }
